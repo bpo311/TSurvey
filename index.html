@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>CBAR Store Survey</title>
+<link rel="icon" type="image/png" sizes="32x32" href="assets/app-icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/app-icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/app-icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+  :root{
+    --brand-green:#2E8B50; --accent:#2D5E3A; --bg:#F5F3EE; --card:#FFFFFF;
+    --text:#1B3A28; --muted:#7A9A80; --border:#D6DDD0;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{
+    font-family:Inter,-apple-system,"SF Pro Text",Segoe UI,sans-serif;
+    background:var(--bg);color:var(--text);min-height:100vh;
+    display:flex;flex-direction:column;align-items:center;
+  }
+
+  /* ---- Slim brand strip ---- */
+  header{
+    width:100%;height:44px;background:var(--accent);color:#fff;
+    display:flex;align-items:center;gap:10px;padding:0 24px;flex-shrink:0;
+  }
+  .logo{position:relative;width:26px;height:26px;flex-shrink:0}
+  .logo span{position:absolute;inset:1.5px;transform:rotate(45deg);border-radius:1px}
+  .logo .black{background:#0A0A0A;translate:2px -1px}
+  .logo .green{background:var(--brand-green);outline:1px solid #fff}
+  header .brand{margin-left:auto;font-size:11px;color:#C8DBBC}
+
+  /* ---- The paper form ---- */
+  .page{
+    width:min(768px,100%);background:var(--card);flex:1;
+    padding:36px 90px;box-shadow:0 1px 4px rgba(0,0,0,.06);
+  }
+  h1{
+    font-size:24px;letter-spacing:1px;text-align:center;margin-bottom:40px;
+  }
+  h2{
+    font-size:13px;letter-spacing:.5px;text-transform:uppercase;margin:26px 0 14px;
+  }
+  h2.centered{text-align:center}
+
+  /* label + fill-in line, mirroring the PDF's ruled lines */
+  .frow{display:flex;align-items:flex-end;gap:12px;margin-bottom:16px}
+  .frow label{width:130px;flex-shrink:0;font-size:14px;font-weight:600;padding-bottom:4px}
+  .frow input,.frow textarea{
+    flex:1;border:none;border-bottom:1px solid var(--text);border-radius:0;
+    font:13px Inter,sans-serif;color:var(--text);padding:0 2px 4px;background:transparent;
+    outline:none;
+  }
+  .frow input:focus{border-bottom-color:var(--brand-green);border-bottom-width:2px}
+  .gps-btn{
+    border:none;background:none;color:var(--accent);cursor:pointer;
+    font-size:17px;line-height:1;padding:0 2px 4px;border-bottom:1px solid var(--text);
+  }
+  .gps-btn:disabled{opacity:.5;cursor:wait}
+  @media print{.gps-btn{display:none}}
+  ::placeholder{color:var(--muted)}
+
+  /* checkboxes: single column, each with a fill-in detail line */
+  .checks{display:flex;flex-direction:column;gap:12px}
+  .checks .crow{display:flex;align-items:flex-end;gap:12px}
+  .checks label{display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;width:150px;flex-shrink:0}
+  .checks .detail{
+    flex:1;border:none;border-bottom:1px solid var(--text);border-radius:0;
+    font:12px Inter,sans-serif;color:var(--text);padding:0 2px 3px;background:transparent;outline:none;
+  }
+  .checks .detail:focus{border-bottom-color:var(--brand-green);border-bottom-width:2px}
+  .checks .sf{
+    width:90px;flex-shrink:0;border:none;border-bottom:1px solid var(--text);border-radius:0;
+    font:12px Inter,sans-serif;color:var(--text);text-align:center;padding:0 2px 3px;
+    background:transparent;outline:none;appearance:textfield;-moz-appearance:textfield;
+  }
+  .checks .sf::-webkit-outer-spin-button,.checks .sf::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .checks .sf:focus{border-bottom-color:var(--brand-green);border-bottom-width:2px}
+  .checks input{
+    appearance:none;width:18px;height:18px;border:1.5px solid var(--text);
+    border-radius:3px;cursor:pointer;display:grid;place-items:center;flex-shrink:0;
+  }
+  .checks input:checked{background:var(--accent);border-color:var(--accent)}
+  .checks input:checked::after{content:"✓";color:#fff;font-size:12px;line-height:1}
+
+  /* notes: ruled lines */
+  #notes{
+    width:100%;border:none;outline:none;resize:none;background:transparent;
+    font:13px/30px Inter,sans-serif;color:var(--text);height:92px;
+    background-image:repeating-linear-gradient(to bottom,transparent 0 29px,var(--border) 29px 30px);
+  }
+
+  .actions{display:flex;gap:12px;margin-top:28px}
+  .btn{
+    flex:1;height:46px;border:none;border-radius:999px;cursor:pointer;
+    font:600 14px Inter,sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .btn-outline{background:#fff;color:var(--accent);border:1px solid var(--accent)}
+  .btn-fill{background:var(--accent);color:#fff}
+  .toast{
+    position:fixed;bottom:24px;left:50%;translate:-50%;background:var(--accent);color:#fff;
+    padding:12px 24px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;
+  }
+  .toast.show{opacity:1}
+
+  /* ---- Print / Save-as-PDF: clean paper form ---- */
+  @media print{
+    @page{size:letter;margin:0.75in}
+    body{background:#fff}
+    header,.actions,.toast{display:none !important}
+    .page{width:100%;box-shadow:none;padding:0}
+    h1{margin-bottom:28px}
+    .frow input,.checks .detail,.checks .sf{border-bottom:1px solid #000;color:#000}
+    .checks input{border-color:#000}
+    .checks input:checked{background:#000;border-color:#000}
+    #notes{background-image:repeating-linear-gradient(to bottom,transparent 0 29px,#999 29px 30px)}
+    .print-meta{display:flex !important}
+  }
+  .print-meta{display:none;justify-content:space-between;font-size:9px;color:#666;margin:-30px 0 24px}
+
+  /* ---- iPad landscape / wide screens: two-column layout ---- */
+  @media (min-width:900px) and (orientation:landscape){
+    .page{width:min(1024px,100%);padding:24px 56px}
+    h1{margin-bottom:22px}
+    .columns{display:flex;gap:56px;align-items:flex-start}
+    .columns .col{flex:1;min-width:0}
+    .col h2:first-child{margin-top:4px}
+  }
+
+  @media (max-width:600px){
+    .page{padding:28px 24px}
+    .frow{flex-direction:column;align-items:stretch;gap:4px}
+    .frow label{width:auto}
+    .checks{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span class="black"></span><span class="green"></span></div>
+  <span class="brand">Interior Surface Enterprises L.L.C.</span>
+</header>
+
+<main class="page">
+  <h1>CBAR STORE SURVEY</h1>
+  <div class="print-meta"><span></span><span>Interior Surface Enterprises L.L.C.</span></div>
+
+  <form id="form" autocomplete="off">
+   <div class="columns">
+   <div class="col">
+    <div class="frow"><label for="surveyor">Surveyor:</label>
+      <input id="surveyor" type="text" placeholder="Your full name"></div>
+    <div class="frow"><label for="dateOfVisit">Date of Visit:</label>
+      <input id="dateOfVisit" type="text" placeholder="Auto-filled at export"></div>
+    <div class="frow"><label for="storeName">Store #:</label>
+      <input id="storeName" type="text" placeholder="e.g. 112"></div>
+    <div class="frow"><label for="address">Address:</label>
+      <input id="address" type="text" placeholder="Auto-filled from GPS…">
+      <button type="button" class="gps-btn" id="gpsBtn" title="Fill address from current location">&#x1F4CD;</button></div>
+    <div class="frow"><label for="manager">PML:</label>
+      <input id="manager" type="text" placeholder="Full name"></div>
+    <div class="frow"><label for="pmlEmail">PML Email:</label>
+      <input id="pmlEmail" type="email" placeholder="Auto: first.last@target.com"></div>
+    <div class="frow"><label for="phone">PML Phone #:</label>
+      <input id="phone" type="tel" placeholder="(000) 000-0000"></div>
+    <div class="frow"><label for="storeDirector">Store Director:</label>
+      <input id="storeDirector" type="text" placeholder="Full name"></div>
+    <div class="frow"><label for="storeDirectorEmail">Store Director Email:</label>
+      <input id="storeDirectorEmail" type="email" placeholder="Auto: first.last@target.com"></div>
+    <div class="frow"><label for="pmbp">PMBP:</label>
+      <input id="pmbp" type="text" placeholder="Full name"></div>
+    <div class="frow"><label for="pmbpEmail">PMBP Email:</label>
+      <input id="pmbpEmail" type="email" placeholder="Auto: first.last@target.com"></div>
+    <div class="frow"><label for="hours">Store Hours:</label>
+      <input id="hours" type="text" placeholder="e.g. Mon–Sun 7 am – 8 pm"></div>
+   </div>
+   <div class="col">
+    <h2 class="centered">Scope of Work <span style="text-transform:none;font-weight:600">(check all that apply)</span></h2>
+    <div class="checks" id="checks">
+      <div class="crow"><label><input type="checkbox" value="VCT">VCT</label>
+        <input type="number" class="sf" data-option="VCT" placeholder="SF">
+        <input type="text" class="detail" data-option="VCT" placeholder="Details"></div>
+      <div class="crow"><label><input type="checkbox" value="Sales Floor CPT">Sales Floor CPT</label>
+        <input type="number" class="sf" data-option="Sales Floor CPT" placeholder="SF">
+        <input type="text" class="detail" data-option="Sales Floor CPT" placeholder="Details"></div>
+      <div class="crow"><label><input type="checkbox" value="LVT">LVT</label>
+        <input type="number" class="sf" data-option="LVT" placeholder="SF">
+        <input type="text" class="detail" data-option="LVT" placeholder="Details"></div>
+      <div class="crow"><label><input type="checkbox" value="Walk Off CPT">Walk Off CPT</label>
+        <input type="number" class="sf" data-option="Walk Off CPT" placeholder="SF">
+        <input type="text" class="detail" data-option="Walk Off CPT" placeholder="Details"></div>
+      <div class="crow"><label><input type="checkbox" value="Vestibule CPT">Vestibule CPT</label>
+        <input type="number" class="sf" data-option="Vestibule CPT" placeholder="SF">
+        <input type="text" class="detail" data-option="Vestibule CPT" placeholder="Details"></div>
+      <div class="crow"><label><input type="checkbox" value="AP CPT">AP CPT</label>
+        <input type="number" class="sf" data-option="AP CPT" placeholder="SF">
+        <input type="text" class="detail" data-option="AP CPT" placeholder="Details"></div>
+      <div class="crow"><label><input type="checkbox" value="TL CPT">TL CPT</label>
+        <input type="number" class="sf" data-option="TL CPT" placeholder="SF">
+        <input type="text" class="detail" data-option="TL CPT" placeholder="Details"></div>
+      <div class="crow"><label>Trailer Location</label>
+        <input type="text" class="detail" data-option="Trailer Location" placeholder="Details"></div>
+      <div class="crow"><label>Dumpster Location</label>
+        <input type="text" class="detail" data-option="Dumpster Location" placeholder="Details"></div>
+    </div>
+
+    <h2>Notes</h2>
+    <textarea id="notes" placeholder="Enter observations..."></textarea>
+
+    <div class="actions">
+
+      <button type="button" class="btn btn-outline" id="savePdfBtn">&#x2913;&nbsp; Save PDF</button>
+      <button type="button" class="btn btn-outline" id="emailBtn">&#x2709;&nbsp; Email PDF</button>
+      <button type="submit" class="btn btn-fill">&#x2713;&nbsp; Submit Survey</button>
+    </div>
+   </div>
+   </div>
+  </form>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const KEY = "cbar-2026-survey-draft";
+// Where completed surveys get emailed. Change to your office address.
+const SURVEY_RECIPIENT = "surveys@interiorsurface.com";
+const FIELDS = ["storeName","address","phone","manager","pmlEmail","storeDirector","storeDirectorEmail","pmbp","pmbpEmail","dateOfVisit","hours","surveyor","notes"];
+
+function collect() {
+  const data = { access: [] };
+  FIELDS.forEach(id => data[id] = document.getElementById(id).value);
+  document.querySelectorAll("#checks input:checked").forEach(c => data.access.push(c.value));
+  data.accessDetails = {};
+  document.querySelectorAll("#checks .detail").forEach(i => { if (i.value) data.accessDetails[i.dataset.option] = i.value; });
+  data.accessSF = {};
+  document.querySelectorAll("#checks .sf").forEach(i => { if (i.value) data.accessSF[i.dataset.option] = i.value; });
+  return data;
+}
+
+function restore() {
+  const raw = localStorage.getItem(KEY);
+  if (!raw) return;
+  try {
+    const data = JSON.parse(raw);
+    FIELDS.forEach(id => { if (data[id] != null) document.getElementById(id).value = data[id]; });
+    document.querySelectorAll("#checks input[type=checkbox]").forEach(c => {
+      c.checked = (data.access || []).includes(c.value);
+    });
+    document.querySelectorAll("#checks .detail").forEach(i => {
+      i.value = (data.accessDetails || {})[i.dataset.option] || "";
+    });
+    document.querySelectorAll("#checks .sf").forEach(i => {
+      i.value = (data.accessSF || {})[i.dataset.option] || "";
+    });
+  } catch (e) { console.warn("Could not restore draft", e); }
+}
+
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+// Auto-fill email fields as first.last@target.com from their name fields,
+// unless the surveyor has typed their own value into the email field.
+function emailFromName(name) {
+  const parts = name.trim().toLowerCase().split(/\s+/).filter(Boolean)
+    .map(p => p.replace(/[^a-z0-9'-]/g, ""));
+  if (!parts.length) return "";
+  return (parts.length > 1 ? parts[0] + "." + parts[parts.length - 1] : parts[0]) + "@target.com";
+}
+[["manager","pmlEmail"],["storeDirector","storeDirectorEmail"],["pmbp","pmbpEmail"]].forEach(([nameId, emailId]) => {
+  const nameEl = document.getElementById(nameId);
+  const emailEl = document.getElementById(emailId);
+  nameEl.addEventListener("input", () => {
+    if (emailEl.dataset.edited !== "true") emailEl.value = emailFromName(nameEl.value);
+  });
+  emailEl.addEventListener("input", () => {
+    emailEl.dataset.edited = emailEl.value.trim() !== "" ? "true" : "false";
+  });
+});
+
+// The on-screen heading has no year; the printed/saved PDF gets the
+// device's current year injected while printing.
+const h1El = document.querySelector("h1");
+const CURRENT_YEAR = new Date().getFullYear();
+document.title = "CBAR " + CURRENT_YEAR + " Store Survey";
+window.addEventListener("beforeprint", () => {
+  h1El.textContent = "CBAR " + new Date().getFullYear() + " STORE SURVEY";
+});
+window.addEventListener("afterprint", () => {
+  h1El.textContent = "CBAR STORE SURVEY";
+});
+
+// Suggested PDF filename: "T(store#) CBAR CurrentYear Survey", e.g. "T112 CBAR 2026 Survey".
+function pdfFileName(store) {
+  const num = (store || "").trim().replace(/[^\w-]+/g, "_");
+  return "T" + (num || "____") + " CBAR " + new Date().getFullYear() + " Survey";
+}
+
+function stampVisitDate() {
+  // Auto-fill the visit date/time from the device clock if left blank.
+  const dv = document.getElementById("dateOfVisit");
+  if (!dv.value.trim()) {
+    const now = new Date();
+    const p = n => String(n).padStart(2, "0");
+    let h = now.getHours(), ap = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    dv.value = p(now.getMonth() + 1) + "/" + p(now.getDate()) + "/" + now.getFullYear() +
+               " " + h + ":" + p(now.getMinutes()) + " " + ap;
+  }
+}
+
+document.getElementById("savePdfBtn").addEventListener("click", () => {
+  stampVisitDate();
+  localStorage.setItem(KEY, JSON.stringify(collect()));
+  const store = document.getElementById("storeName").value.trim();
+  const oldTitle = document.title;
+  // Filename suggestion when saving as PDF comes from the document title.
+  document.title = pdfFileName(store);
+  window.print();   // choose "Save as PDF" (or a PDF printer) in the dialog
+  document.title = oldTitle;
+});
+
+document.getElementById("emailBtn").addEventListener("click", () => {
+  stampVisitDate();
+  localStorage.setItem(KEY, JSON.stringify(collect()));
+  const d = collect();
+  const storeTag = d.storeName ? "Store #" + d.storeName : "(draft)";
+
+  // 1) Save the PDF first (browsers can't attach files via mailto).
+  toast("Save the PDF, then attach it to the email that opens");
+  const oldTitle = document.title;
+  document.title = pdfFileName(d.storeName);
+  window.print();   // choose "Save as PDF"
+  document.title = oldTitle;
+
+  // 2) Open a pre-addressed email with a summary in the body.
+  const subject = "CBAR " + CURRENT_YEAR + " Store Survey \u2014 " + storeTag;
+  const body = [
+    "Attached is the completed CBAR " + CURRENT_YEAR + " Store Survey.",
+    "",
+    "Store #: " + d.storeName,
+    "Address: " + d.address,
+    "Date of Visit: " + d.dateOfVisit,
+    "Surveyor: " + d.surveyor,
+    "Scope of Work: " + d.access.map(a => {
+      const extras = [d.accessSF[a] && d.accessSF[a] + " SF", d.accessDetails[a]].filter(Boolean);
+      return extras.length ? a + " (" + extras.join(", ") + ")" : a;
+    }).join(", "),
+    "Trailer Location: " + (d.accessDetails["Trailer Location"] || ""),
+    "Dumpster Location: " + (d.accessDetails["Dumpster Location"] || ""),
+    "",
+    "Notes:",
+    d.notes,
+  ].join("\n");
+  window.location.href = "mailto:" + SURVEY_RECIPIENT +
+    "?subject=" + encodeURIComponent(subject) +
+    "&body=" + encodeURIComponent(body);
+});
+
+document.getElementById("form").addEventListener("submit", e => {
+  e.preventDefault();
+  localStorage.setItem(KEY, JSON.stringify(collect()));
+  // TODO: POST collect() to your API endpoint here.
+  toast("Survey submitted — thank you!");
+});
+
+restore();
+
+// ---- GPS -> address auto-fill ----------------------------------------------
+// On iOS/iPadOS the native (Swift) app uses Apple Maps' geocoder directly.
+// On the web: if you have an Apple MapKit JS token, set MAPKIT_TOKEN below to
+// use Apple Maps; otherwise we fall back to OpenStreetMap's free geocoder.
+const MAPKIT_TOKEN = ""; // optional: your MapKit JS JWT
+
+async function reverseGeocode(lat, lon) {
+  if (MAPKIT_TOKEN) {
+    // Apple Maps Server API reverse geocode
+    const r = await fetch(
+      `https://maps-api.apple.com/v1/reverseGeocode?loc=${lat},${lon}`,
+      { headers: { Authorization: "Bearer " + MAPKIT_TOKEN } });
+    const j = await r.json();
+    const a = j.results && j.results[0] && j.results[0].structuredAddress;
+    if (a) return [a.fullThoroughfare, a.locality,
+                   [a.administrativeArea, a.postCode].filter(Boolean).join(" ")]
+                  .filter(Boolean).join(", ");
+  }
+  // Fallback: OpenStreetMap Nominatim
+  const r = await fetch(
+    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`,
+    { headers: { Accept: "application/json" } });
+  const j = await r.json();
+  const a = j.address || {};
+  return [[a.house_number, a.road].filter(Boolean).join(" "),
+          a.city || a.town || a.village || "",
+          [a.state, a.postcode].filter(Boolean).join(" ")]
+         .filter(Boolean).join(", ") || j.display_name || "";
+}
+
+function fillAddressFromGPS(silent) {
+  const btn = document.getElementById("gpsBtn");
+  if (!navigator.geolocation) { if (!silent) toast("Geolocation not supported"); return; }
+  btn.disabled = true;
+  navigator.geolocation.getCurrentPosition(async pos => {
+    try {
+      const addr = await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
+      if (addr) {
+        document.getElementById("address").value = addr;
+        toast("Address filled from current location");
+      } else if (!silent) toast("Couldn't resolve an address here");
+    } catch (e) {
+      if (!silent) toast("Address lookup failed");
+    } finally { btn.disabled = false; }
+  }, () => {
+    btn.disabled = false;
+    if (!silent) toast("Location permission denied");
+  }, { enableHighAccuracy: true, timeout: 10000 });
+}
+
+document.getElementById("gpsBtn").addEventListener("click", () => fillAddressFromGPS(false));
+// Auto-populate when the form opens with an empty address.
+if (!document.getElementById("address").value) fillAddressFromGPS(true);
+</script>
+</body>
+</html>
