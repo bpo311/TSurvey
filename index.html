@@ -117,7 +117,9 @@
     .checks input:checked{background:#000;border-color:#000}
     #notes{background-image:repeating-linear-gradient(to bottom,transparent 0 29px,#999 29px 30px)}
     .print-meta{display:flex !important}
+    .print-only{display:flex !important}
   }
+  .print-only{display:none}
   .print-meta{display:none;justify-content:space-between;font-size:9px;color:#666;margin:-30px 0 24px}
 
   /* ---- iPad landscape / wide screens: two-column layout ---- */
@@ -153,8 +155,8 @@
    <div class="col">
     <div class="frow"><label for="surveyor">Surveyor:</label>
       <input id="surveyor" type="text" placeholder="Your full name"></div>
-    <div class="frow"><label for="dateOfVisit">Date of Visit:</label>
-      <input id="dateOfVisit" type="text" placeholder="Auto-filled at export"></div>
+    <div class="frow print-only"><label for="dateOfVisit">Date of Visit:</label>
+      <input id="dateOfVisit" type="text"></div>
     <div class="frow"><label for="storeName">Store #:</label>
       <input id="storeName" type="text" placeholder="e.g. 112"></div>
     <div class="frow"><label for="address">Address:</label>
