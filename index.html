@@ -518,21 +518,33 @@ async function emailWithPdfAttachment() {
   const storeTag = d.storeName ? "Store #" + d.storeName : "(draft)";
   const subject = "CBAR " + CURRENT_YEAR + " Store Survey \u2014 " + storeTag;
 
-  if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    try { await navigator.clipboard.writeText(SURVEY_RECIPIENT); } catch (e) {}
-    toast("Choose Mail, then send to " + SURVEY_RECIPIENT + " (copied to clipboard)");
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+    (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
+  const shareData = { files: [file], title: subject, text: "CBAR " + CURRENT_YEAR + " Store Survey \u2014 send to " + SURVEY_RECIPIENT };
+
+  if (isMobile && navigator.canShare && navigator.canShare(shareData)) {
     try {
-      await navigator.share({ files: [file], title: subject, text: "CBAR " + CURRENT_YEAR + " Store Survey \u2014 send to " + SURVEY_RECIPIENT });
-    } catch (e) { /* user cancelled the share sheet */ }
-  } else {
+      await navigator.share(shareData);
+      try { navigator.clipboard.writeText(SURVEY_RECIPIENT); } catch (e) {}
+      toast("Send to " + SURVEY_RECIPIENT + " (address copied to clipboard)");
+      return;
+    } catch (e) {
+      if (e && e.name === "AbortError") return; // user closed the share sheet
+      // otherwise fall through to email + download
+    }
+  }
+
+  // Desktop / no file sharing: open the pre-addressed email immediately
+  // (while still in the user gesture), then download the PDF to attach.
+  openSurveyEmail();
+  setTimeout(() => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url; a.download = fileName;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
-    toast("PDF downloaded \u2014 attach it to the email that opens");
-    setTimeout(openSurveyEmail, 600);
-  }
+    toast("PDF downloaded \u2014 attach it to the email");
+  }, 800);
 }
 
 document.getElementById("emailBtn").addEventListener("click", () => {
