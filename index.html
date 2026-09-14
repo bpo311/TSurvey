@@ -301,6 +301,14 @@ window.addEventListener("beforeprint", () => {
 window.addEventListener("afterprint", () => {
   h1El.textContent = "CBAR STORE SURVEY";
   document.querySelectorAll(".print-skip").forEach(el => el.classList.remove("print-skip"));
+  if (promptEmailAfterPrint) {
+    promptEmailAfterPrint = false;
+    setTimeout(() => {
+      if (confirm("PDF saved. Email the survey to " + SURVEY_RECIPIENT + " now?\n\nRemember to attach the saved PDF in the email.")) {
+        openSurveyEmail();
+      }
+    }, 400);
+  }
 });
 
 // Suggested PDF filename: "T(store#) CBAR CurrentYear Survey", e.g. "T112 CBAR 2026 Survey".
@@ -366,6 +374,8 @@ function hasFormContent() {
   return frows || scope || document.getElementById("notes").value.trim() !== "";
 }
 
+let promptEmailAfterPrint = false;
+
 document.getElementById("savePdfBtn").addEventListener("click", () => {
   if (!hasFormContent()) { toast("Nothing to print \u2014 fill in a field or check a scope box first"); return; }
   stampVisitDate();
@@ -375,20 +385,14 @@ document.getElementById("savePdfBtn").addEventListener("click", () => {
   const oldTitle = document.title;
   // Filename suggestion when saving as PDF comes from the document title.
   document.title = pdfFileName(store);
+  promptEmailAfterPrint = true;
   window.print();   // choose "Save as PDF" (or a PDF printer) in the dialog
   document.title = oldTitle;
 });
 
-document.getElementById("emailBtn").addEventListener("click", () => {
-  if (!hasFormContent()) { toast("Nothing to send \u2014 fill in a field or check a scope box first"); return; }
-  stampVisitDate();
-  preparePrint();
-  localStorage.setItem(KEY, JSON.stringify(collect()));
+function openSurveyEmail() {
   const d = collect();
   const storeTag = d.storeName ? "Store #" + d.storeName : "(draft)";
-
-  // Open the device's default email app, pre-addressed with the survey summary.
-  // (Browsers can't attach files via mailto — use Save PDF to attach the PDF manually.)
   const subject = "CBAR " + CURRENT_YEAR + " Store Survey \u2014 " + storeTag;
   const body = [
     "Attached is the completed CBAR " + CURRENT_YEAR + " Store Survey.",
@@ -410,6 +414,14 @@ document.getElementById("emailBtn").addEventListener("click", () => {
   window.location.href = "mailto:" + SURVEY_RECIPIENT +
     "?subject=" + encodeURIComponent(subject) +
     "&body=" + encodeURIComponent(body);
+}
+
+document.getElementById("emailBtn").addEventListener("click", () => {
+  if (!hasFormContent()) { toast("Nothing to send \u2014 fill in a field or check a scope box first"); return; }
+  stampVisitDate();
+  preparePrint();
+  localStorage.setItem(KEY, JSON.stringify(collect()));
+  openSurveyEmail();
 });
 
 document.getElementById("form").addEventListener("submit", e => e.preventDefault());
