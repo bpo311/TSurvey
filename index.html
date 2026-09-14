@@ -391,11 +391,8 @@ document.getElementById("savePdfBtn").addEventListener("click", () => {
   document.title = oldTitle;
 });
 
-function openSurveyEmail() {
-  const d = collect();
-  const storeTag = d.storeName ? "Store #" + d.storeName : "(draft)";
-  const subject = "CBAR " + CURRENT_YEAR + " Store Survey \u2014 " + storeTag;
-  const body = [
+function buildSurveySummary(d) {
+  return [
     "Attached is the completed CBAR " + CURRENT_YEAR + " Store Survey.",
     "",
     "Store #: " + d.storeName,
@@ -412,9 +409,15 @@ function openSurveyEmail() {
     "Notes:",
     d.notes,
   ].join("\n");
+}
+
+function openSurveyEmail() {
+  const d = collect();
+  const storeTag = d.storeName ? "Store #" + d.storeName : "(draft)";
+  const subject = "CBAR " + CURRENT_YEAR + " Store Survey \u2014 " + storeTag;
   window.location.href = "mailto:" + SURVEY_RECIPIENT +
     "?subject=" + encodeURIComponent(subject) +
-    "&body=" + encodeURIComponent(body);
+    "&body=" + encodeURIComponent(buildSurveySummary(d));
 }
 
 function buildPdfBlob() {
@@ -530,7 +533,7 @@ async function emailWithPdfAttachment() {
 
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
     (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
-  const shareData = { files: [file], title: subject, text: "CBAR " + CURRENT_YEAR + " Store Survey \u2014 send to " + SURVEY_RECIPIENT };
+  const shareData = { files: [file], title: subject, text: buildSurveySummary(d) + "\n\nSend to: " + SURVEY_RECIPIENT };
 
   if (isMobile && navigator.canShare && navigator.canShare(shareData)) {
     try {
