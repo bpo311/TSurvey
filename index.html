@@ -513,6 +513,14 @@ function buildPdfBlob() {
   return doc.output("blob");
 }
 
+function clearForm() {
+  document.querySelectorAll("#form input[type=text],#form input[type=email],#form input[type=tel],#form input[type=number]").forEach(i => i.value = "");
+  document.querySelectorAll("#checks input[type=checkbox]").forEach(c => c.checked = false);
+  document.getElementById("notes").value = "";
+  localStorage.removeItem(KEY);
+  toast("Survey sent \u2014 form cleared for the next store");
+}
+
 async function emailWithPdfAttachment() {
   const d = collect();
   const fileName = pdfFileName(d.storeName) + ".pdf";
@@ -539,7 +547,7 @@ async function emailWithPdfAttachment() {
     try {
       await navigator.share(shareData);
       try { navigator.clipboard.writeText(SURVEY_RECIPIENT); } catch (e) {}
-      toast("Send to " + SURVEY_RECIPIENT + " (address copied to clipboard)");
+      clearForm();
       return;
     } catch (e) {
       if (e && e.name === "AbortError") return; // user closed the share sheet
@@ -556,7 +564,7 @@ async function emailWithPdfAttachment() {
     a.href = url; a.download = fileName;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
-    toast("PDF downloaded \u2014 attach it to the email");
+    clearForm();
   }, 800);
 }
 
