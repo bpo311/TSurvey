@@ -229,6 +229,7 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
 <script>
 const KEY = "cbar-2026-survey-draft";
 // Where completed surveys get emailed. Change to your office address.
@@ -304,8 +305,8 @@ window.addEventListener("afterprint", () => {
   if (promptEmailAfterPrint) {
     promptEmailAfterPrint = false;
     setTimeout(() => {
-      if (confirm("PDF saved. Email the survey to " + SURVEY_RECIPIENT + " now?\n\nRemember to attach the saved PDF in the email.")) {
-        openSurveyEmail();
+      if (confirm("PDF saved. Email the survey to " + SURVEY_RECIPIENT + " now?")) {
+        emailWithPdfAttachment();
       }
     }, 400);
   }
@@ -416,12 +417,129 @@ function openSurveyEmail() {
     "&body=" + encodeURIComponent(body);
 }
 
+function buildPdfBlob() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const d = collect();
+  const left = 54, right = 558, mid = 306;
+  let y = 64;
+  const RED = [204, 0, 0];
+
+  const pageBreak = need => { if (y + need > 730) { doc.addPage(); y = 64; } };
+
+  doc.setFont("helvetica", "bold").setFontSize(20).setTextColor(...RED);
+  doc.text("CBAR " + CURRENT_YEAR + " STORE SURVEY", mid, y, { align: "center" });
+  y += 14;
+  doc.setFont("helvetica", "normal").setFontSize(8).setTextColor(102);
+  doc.text("Interior Surface Enterprises L.L.C.", mid, y, { align: "center" });
+  y += 34;
+
+  const rows = [
+    ["Surveyor", d.surveyor], ["Date of Visit", d.dateOfVisit], ["Store #", d.storeName],
+    ["Address", d.address], ["PML", d.manager], ["PML Email", d.pmlEmail],
+    ["PML Phone #", d.phone ? formatNANP(d.phone.trim()) : ""],
+    ["Store Director", d.storeDirector], ["Store Director Email", d.storeDirectorEmail],
+    ["PMBP", d.pmbp], ["PMBP Email", d.pmbpEmail], ["Store Hours", d.hours],
+  ];
+  doc.setFontSize(11);
+  for (const [label, val] of rows) {
+    if (!val || !String(val).trim()) continue;
+    pageBreak(24);
+    doc.setFont("helvetica", "bold").setTextColor(0);
+    doc.text(label + ":", left, y);
+    doc.setFont("helvetica", "normal");
+    doc.text(String(val).trim(), left + 145, y);
+    doc.setDrawColor(0).setLineWidth(0.5);
+    doc.line(left + 140, y + 3, right, y + 3);
+    y += 24;
+  }
+
+  const scopeItems = [];
+  new Set([...d.access, ...Object.keys(d.accessSF), ...Object.keys(d.accessDetails)]).forEach(o => {
+    if (o === "Trailer Location" || o === "Dumpster Location") return;
+    scopeItems.push({ opt: o, checked: d.access.includes(o), sf: d.accessSF[o], det: d.accessDetails[o] });
+  });
+  const locs = ["Trailer Location", "Dumpster Location"].filter(o => d.accessDetails[o]);
+
+  if (scopeItems.length || locs.length) {
+    y += 8; pageBreak(40);
+    doc.setFont("helvetica", "bold").setFontSize(12).setTextColor(...RED);
+    doc.text("SCOPE OF WORK", left, y);
+    y += 20;
+    doc.setFontSize(11);
+    for (const it of scopeItems) {
+      pageBreak(22);
+      doc.setDrawColor(...RED).setLineWidth(1);
+      doc.rect(left, y - 9, 11, 11);
+      if (it.checked) {
+        doc.setLineWidth(1.4);
+        doc.line(left + 2.5, y - 3.5, left + 4.5, y - 1);
+        doc.line(left + 4.5, y - 1, left + 9, y - 7);
+      }
+      doc.setFont("helvetica", "bold").setTextColor(0);
+      doc.text(it.opt, left + 20, y);
+      const extras = [it.sf && it.sf + " SF", it.det].filter(Boolean).join(" \u2014 ");
+      if (extras) {
+        doc.setFont("helvetica", "normal");
+        doc.text(extras, left + 150, y, { maxWidth: right - left - 150 });
+      }
+      y += 22;
+    }
+    for (const o of locs) {
+      pageBreak(22);
+      doc.setFont("helvetica", "bold").setTextColor(0);
+      doc.text(o + ":", left, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(d.accessDetails[o], left + 150, y, { maxWidth: right - left - 150 });
+      y += 22;
+    }
+  }
+
+  if (d.notes && d.notes.trim()) {
+    y += 8; pageBreak(60);
+    doc.setFont("helvetica", "bold").setFontSize(12).setTextColor(...RED);
+    doc.text("NOTES", left, y);
+    y += 18;
+    doc.setFont("helvetica", "normal").setFontSize(11).setTextColor(0);
+    for (const line of doc.splitTextToSize(d.notes.trim(), right - left)) {
+      pageBreak(16);
+      doc.text(line, left, y);
+      y += 16;
+    }
+  }
+  return doc.output("blob");
+}
+
+async function emailWithPdfAttachment() {
+  const d = collect();
+  const fileName = pdfFileName(d.storeName) + ".pdf";
+  const blob = buildPdfBlob();
+  const file = new File([blob], fileName, { type: "application/pdf" });
+  const storeTag = d.storeName ? "Store #" + d.storeName : "(draft)";
+  const subject = "CBAR " + CURRENT_YEAR + " Store Survey \u2014 " + storeTag;
+
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.clipboard.writeText(SURVEY_RECIPIENT); } catch (e) {}
+    toast("Choose Mail, then send to " + SURVEY_RECIPIENT + " (copied to clipboard)");
+    try {
+      await navigator.share({ files: [file], title: subject, text: "CBAR " + CURRENT_YEAR + " Store Survey \u2014 send to " + SURVEY_RECIPIENT });
+    } catch (e) { /* user cancelled the share sheet */ }
+  } else {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = fileName;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    toast("PDF downloaded \u2014 attach it to the email that opens");
+    setTimeout(openSurveyEmail, 600);
+  }
+}
+
 document.getElementById("emailBtn").addEventListener("click", () => {
   if (!hasFormContent()) { toast("Nothing to send \u2014 fill in a field or check a scope box first"); return; }
   stampVisitDate();
-  preparePrint();
   localStorage.setItem(KEY, JSON.stringify(collect()));
-  openSurveyEmail();
+  emailWithPdfAttachment();
 });
 
 document.getElementById("form").addEventListener("submit", e => e.preventDefault());
