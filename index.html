@@ -219,7 +219,6 @@
 
     <div class="actions">
 
-      <button type="button" class="btn btn-outline" id="savePdfBtn">&#x2913;&nbsp; Save PDF</button>
       <button type="button" class="btn btn-outline" id="emailBtn">&#x2709;&nbsp; Email PDF</button>
     </div>
    </div>
@@ -298,18 +297,11 @@ const CURRENT_YEAR = new Date().getFullYear();
 document.title = "CBAR " + CURRENT_YEAR + " Store Survey";
 window.addEventListener("beforeprint", () => {
   h1El.textContent = "CBAR " + new Date().getFullYear() + " STORE SURVEY";
+  preparePrint();
 });
 window.addEventListener("afterprint", () => {
   h1El.textContent = "CBAR STORE SURVEY";
   document.querySelectorAll(".print-skip").forEach(el => el.classList.remove("print-skip"));
-  if (promptEmailAfterPrint) {
-    promptEmailAfterPrint = false;
-    setTimeout(() => {
-      if (confirm("PDF saved. Email the survey to " + SURVEY_RECIPIENT + " now?")) {
-        emailWithPdfAttachment();
-      }
-    }, 400);
-  }
 });
 
 // Suggested PDF filename: "T(store#) CBAR CurrentYear Survey", e.g. "T112 CBAR 2026 Survey".
@@ -374,22 +366,6 @@ function hasFormContent() {
     .some(i => i.type === "checkbox" ? i.checked : i.value.trim() !== "");
   return frows || scope || document.getElementById("notes").value.trim() !== "";
 }
-
-let promptEmailAfterPrint = false;
-
-document.getElementById("savePdfBtn").addEventListener("click", () => {
-  if (!hasFormContent()) { toast("Nothing to print \u2014 fill in a field or check a scope box first"); return; }
-  stampVisitDate();
-  preparePrint();
-  localStorage.setItem(KEY, JSON.stringify(collect()));
-  const store = document.getElementById("storeName").value.trim();
-  const oldTitle = document.title;
-  // Filename suggestion when saving as PDF comes from the document title.
-  document.title = pdfFileName(store);
-  promptEmailAfterPrint = true;
-  window.print();   // choose "Save as PDF" (or a PDF printer) in the dialog
-  document.title = oldTitle;
-});
 
 function buildSurveySummary(d) {
   return [
