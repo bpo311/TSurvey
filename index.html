@@ -118,6 +118,7 @@
     #notes{background-image:repeating-linear-gradient(to bottom,transparent 0 29px,#999 29px 30px)}
     .print-meta{display:flex !important}
     .print-only{display:flex !important}
+    .print-skip{display:none !important}
   }
   .print-only{display:none}
   .print-meta{display:none;justify-content:space-between;font-size:9px;color:#666;margin:-30px 0 24px}
@@ -180,7 +181,7 @@
       <input id="hours" type="text" placeholder="e.g. Mon–Sun 7 am – 8 pm"></div>
    </div>
    <div class="col">
-    <h2 class="centered">Scope of Work <span style="text-transform:none;font-weight:600">(check all that apply)</span></h2>
+    <h2 class="centered" id="scopeHead">Scope of Work <span style="text-transform:none;font-weight:600">(check all that apply)</span></h2>
     <div class="checks" id="checks">
       <div class="crow"><label><input type="checkbox" value="VCT">VCT</label>
         <input type="number" class="sf" data-option="VCT" placeholder="SF">
@@ -209,7 +210,7 @@
         <input type="text" class="detail" data-option="Dumpster Location" placeholder="Details"></div>
     </div>
 
-    <h2>Notes</h2>
+    <h2 id="notesHead">Notes</h2>
     <textarea id="notes" placeholder="Enter observations..."></textarea>
 
     <div class="actions">
@@ -295,6 +296,7 @@ window.addEventListener("beforeprint", () => {
 });
 window.addEventListener("afterprint", () => {
   h1El.textContent = "CBAR STORE SURVEY";
+  document.querySelectorAll(".print-skip").forEach(el => el.classList.remove("print-skip"));
 });
 
 // Suggested PDF filename: "T(store#) CBAR CurrentYear Survey", e.g. "T112 CBAR 2026 Survey".
@@ -316,8 +318,44 @@ function stampVisitDate() {
   }
 }
 
+function preparePrint() {
+  // Only rows with content make it onto the PDF.
+  let hasContent = false;
+  document.querySelectorAll(".frow").forEach(row => {
+    const inp = row.querySelector("input");
+    const filled = inp && inp.value.trim() !== "";
+    row.classList.toggle("print-skip", !filled);
+    if (filled && inp.id !== "dateOfVisit") hasContent = true;
+  });
+  let anyScope = false;
+  document.querySelectorAll("#checks .crow").forEach(row => {
+    const cb = row.querySelector("input[type=checkbox]");
+    const texts = [...row.querySelectorAll(".sf,.detail")];
+    const filled = (cb && cb.checked) || texts.some(t => t.value.trim() !== "");
+    row.classList.toggle("print-skip", !filled);
+    if (filled) { anyScope = true; hasContent = true; }
+  });
+  document.getElementById("scopeHead").classList.toggle("print-skip", !anyScope);
+  const notes = document.getElementById("notes");
+  const hasNotes = notes.value.trim() !== "";
+  notes.classList.toggle("print-skip", !hasNotes);
+  document.getElementById("notesHead").classList.toggle("print-skip", !hasNotes);
+  if (hasNotes) hasContent = true;
+  return hasContent;
+}
+
+function hasFormContent() {
+  const frows = [...document.querySelectorAll(".frow input")]
+    .some(i => i.id !== "dateOfVisit" && i.value.trim() !== "");
+  const scope = [...document.querySelectorAll("#checks input")]
+    .some(i => i.type === "checkbox" ? i.checked : i.value.trim() !== "");
+  return frows || scope || document.getElementById("notes").value.trim() !== "";
+}
+
 document.getElementById("savePdfBtn").addEventListener("click", () => {
+  if (!hasFormContent()) { toast("Nothing to print \u2014 fill in a field or check a scope box first"); return; }
   stampVisitDate();
+  preparePrint();
   localStorage.setItem(KEY, JSON.stringify(collect()));
   const store = document.getElementById("storeName").value.trim();
   const oldTitle = document.title;
@@ -328,7 +366,9 @@ document.getElementById("savePdfBtn").addEventListener("click", () => {
 });
 
 document.getElementById("emailBtn").addEventListener("click", () => {
+  if (!hasFormContent()) { toast("Nothing to send \u2014 fill in a field or check a scope box first"); return; }
   stampVisitDate();
+  preparePrint();
   localStorage.setItem(KEY, JSON.stringify(collect()));
   const d = collect();
   const storeTag = d.storeName ? "Store #" + d.storeName : "(draft)";
