@@ -232,7 +232,7 @@
 <script>
 const KEY = "cbar-2026-survey-draft";
 // Where completed surveys get emailed. Change to your office address.
-const SURVEY_RECIPIENT = "surveys@interiorsurface.com";
+const SURVEY_RECIPIENT = "Target@interiorsurface.com";
 const FIELDS = ["storeName","address","phone","manager","pmlEmail","storeDirector","storeDirectorEmail","pmbp","pmbpEmail","dateOfVisit","hours","surveyor","notes"];
 
 function collect() {
@@ -387,14 +387,8 @@ document.getElementById("emailBtn").addEventListener("click", () => {
   const d = collect();
   const storeTag = d.storeName ? "Store #" + d.storeName : "(draft)";
 
-  // 1) Save the PDF first (browsers can't attach files via mailto).
-  toast("Save the PDF, then attach it to the email that opens");
-  const oldTitle = document.title;
-  document.title = pdfFileName(d.storeName);
-  window.print();   // choose "Save as PDF"
-  document.title = oldTitle;
-
-  // 2) Open a pre-addressed email with a summary in the body.
+  // Open the device's default email app, pre-addressed with the survey summary.
+  // (Browsers can't attach files via mailto — use Save PDF to attach the PDF manually.)
   const subject = "CBAR " + CURRENT_YEAR + " Store Survey \u2014 " + storeTag;
   const body = [
     "Attached is the completed CBAR " + CURRENT_YEAR + " Store Survey.",
