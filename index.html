@@ -229,7 +229,7 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 const KEY = "cbar-2026-survey-draft";
 // Where completed surveys get emailed. Change to your office address.
@@ -513,10 +513,20 @@ function buildPdfBlob() {
 async function emailWithPdfAttachment() {
   const d = collect();
   const fileName = pdfFileName(d.storeName) + ".pdf";
-  const blob = buildPdfBlob();
-  const file = new File([blob], fileName, { type: "application/pdf" });
   const storeTag = d.storeName ? "Store #" + d.storeName : "(draft)";
   const subject = "CBAR " + CURRENT_YEAR + " Store Survey \u2014 " + storeTag;
+
+  let blob = null;
+  try { blob = buildPdfBlob(); }
+  catch (e) { console.error("PDF generation failed:", e); }
+
+  if (!blob) {
+    // PDF library unavailable (e.g. offline) - still open the email with the text summary.
+    toast("Couldn't build the PDF \u2014 opening email with text summary");
+    openSurveyEmail();
+    return;
+  }
+  const file = new File([blob], fileName, { type: "application/pdf" });
 
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
     (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
