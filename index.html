@@ -318,7 +318,17 @@ function stampVisitDate() {
   }
 }
 
+function formatNANP(raw) {
+  // Normalize to North American Numbering Plan format: (NXX) NXX-XXXX
+  let digits = raw.replace(/\D/g, "");
+  if (digits.length === 11 && digits[0] === "1") digits = digits.slice(1);
+  if (digits.length !== 10) return raw;
+  return "(" + digits.slice(0, 3) + ") " + digits.slice(3, 6) + "-" + digits.slice(6);
+}
+
 function preparePrint() {
+  const phone = document.getElementById("phone");
+  if (phone.value.trim()) phone.value = formatNANP(phone.value.trim());
   // Only rows with content make it onto the PDF.
   let hasContent = false;
   document.querySelectorAll(".frow").forEach(row => {
