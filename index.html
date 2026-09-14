@@ -214,7 +214,6 @@
 
       <button type="button" class="btn btn-outline" id="savePdfBtn">&#x2913;&nbsp; Save PDF</button>
       <button type="button" class="btn btn-outline" id="emailBtn">&#x2709;&nbsp; Email PDF</button>
-      <button type="submit" class="btn btn-fill">&#x2713;&nbsp; Submit Survey</button>
     </div>
    </div>
    </div>
@@ -363,12 +362,7 @@ document.getElementById("emailBtn").addEventListener("click", () => {
     "&body=" + encodeURIComponent(body);
 });
 
-document.getElementById("form").addEventListener("submit", e => {
-  e.preventDefault();
-  localStorage.setItem(KEY, JSON.stringify(collect()));
-  // TODO: POST collect() to your API endpoint here.
-  toast("Survey submitted — thank you!");
-});
+document.getElementById("form").addEventListener("submit", e => e.preventDefault());
 
 restore();
 
