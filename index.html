@@ -48,12 +48,16 @@
   /* label + fill-in line, mirroring the PDF's ruled lines */
   .frow{display:flex;align-items:flex-end;gap:12px;margin-bottom:16px}
   .frow label{width:130px;flex-shrink:0;font-size:14px;font-weight:600;padding-bottom:4px}
-  .frow input,.frow textarea{
+  .frow input,.frow textarea,.frow select{
     flex:1;border:none;border-bottom:1px solid var(--text);border-radius:0;
     font:13px Inter,sans-serif;color:var(--text);padding:0 2px 4px;background:transparent;
     outline:none;
   }
-  .frow input:focus{border-bottom-color:var(--brand-green);border-bottom-width:2px}
+  .frow select{appearance:none;-webkit-appearance:none;cursor:pointer;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%231B3A28' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 2px center}
+  .frow select:invalid,.frow select option[value=""]{color:var(--muted)}
+  .frow input:focus,.frow select:focus{border-bottom-color:var(--brand-green);border-bottom-width:2px}
   .gps-btn{
     border:none;background:none;color:var(--accent);cursor:pointer;
     font-size:17px;line-height:1;padding:0 2px 4px;border-bottom:1px solid var(--text);
@@ -114,7 +118,8 @@
     body,.page,.frow label,.checks label,#notes,.frow input,.frow textarea{color:#000}
     h1{margin-bottom:28px;color:#CC0000}
     h2{color:#CC0000}
-    .frow input,.checks .detail,.checks .sf{border-bottom:1px solid #000;color:#000}
+    .frow input,.frow select,.checks .detail,.checks .sf{border-bottom:1px solid #000;color:#000}
+    .frow select{background-image:none}
     ::placeholder{color:transparent}
     .checks input{border-color:#000}
     .checks input:checked{background:#fff;border-color:#CC0000}
@@ -159,7 +164,15 @@
    <div class="columns">
    <div class="col">
     <div class="frow"><label for="surveyor">Surveyor:</label>
-      <input id="surveyor" type="text" placeholder="Your full name"></div>
+      <select id="surveyor" required>
+        <option value="" selected>Select surveyor…</option>
+        <option>Tim</option>
+        <option>Janell</option>
+        <option>Jacob</option>
+        <option>Ben</option>
+      </select></div>
+    <div class="frow"><label for="surveyorEmail">Surveyor Email:</label>
+      <input id="surveyorEmail" type="email" placeholder="Auto: name@interiorsurface.com"></div>
     <div class="frow print-only"><label for="dateOfVisit">Date of Visit:</label>
       <input id="dateOfVisit" type="text"></div>
     <div class="frow"><label for="storeName">Store #:</label>
@@ -233,7 +246,7 @@
 const KEY = "cbar-2026-survey-draft";
 // Where completed surveys get emailed. Change to your office address.
 const SURVEY_RECIPIENT = "Target@interiorsurface.com";
-const FIELDS = ["storeName","address","phone","manager","pmlEmail","storeDirector","storeDirectorEmail","pmbp","pmbpEmail","dateOfVisit","hours","surveyor","notes"];
+const FIELDS = ["storeName","address","phone","manager","pmlEmail","storeDirector","storeDirectorEmail","pmbp","pmbpEmail","dateOfVisit","hours","surveyor","surveyorEmail","notes"];
 
 function collect() {
   const data = { access: [] };
@@ -290,6 +303,20 @@ function emailFromName(name) {
   });
 });
 
+// Surveyor dropdown -> surveyor email as name@interiorsurface.com,
+// unless the surveyor typed their own value into the email field.
+{
+  const surveyorEl = document.getElementById("surveyor");
+  const surveyorEmailEl = document.getElementById("surveyorEmail");
+  surveyorEl.addEventListener("change", () => {
+    if (surveyorEmailEl.dataset.edited !== "true")
+      surveyorEmailEl.value = surveyorEl.value ? surveyorEl.value.toLowerCase() + "@interiorsurface.com" : "";
+  });
+  surveyorEmailEl.addEventListener("input", () => {
+    surveyorEmailEl.dataset.edited = surveyorEmailEl.value.trim() !== "" ? "true" : "false";
+  });
+}
+
 // The on-screen heading has no year; the printed/saved PDF gets the
 // device's current year injected while printing.
 const h1El = document.querySelector("h1");
@@ -337,7 +364,7 @@ function preparePrint() {
   // Only rows with content make it onto the PDF.
   let hasContent = false;
   document.querySelectorAll(".frow").forEach(row => {
-    const inp = row.querySelector("input");
+    const inp = row.querySelector("input,select");
     const filled = inp && inp.value.trim() !== "";
     row.classList.toggle("print-skip", !filled);
     if (filled && inp.id !== "dateOfVisit") hasContent = true;
@@ -360,7 +387,7 @@ function preparePrint() {
 }
 
 function hasFormContent() {
-  const frows = [...document.querySelectorAll(".frow input")]
+  const frows = [...document.querySelectorAll(".frow input,.frow select")]
     .some(i => i.id !== "dateOfVisit" && i.value.trim() !== "");
   const scope = [...document.querySelectorAll("#checks input")]
     .some(i => i.type === "checkbox" ? i.checked : i.value.trim() !== "");
@@ -375,6 +402,7 @@ function buildSurveySummary(d) {
     "Address: " + d.address,
     "Date of Visit: " + d.dateOfVisit,
     "Surveyor: " + d.surveyor,
+    "Surveyor Email: " + d.surveyorEmail,
     "Scope of Work: " + d.access.map(a => {
       const extras = [d.accessSF[a] && d.accessSF[a] + " SF", d.accessDetails[a]].filter(Boolean);
       return extras.length ? a + " (" + extras.join(", ") + ")" : a;
@@ -414,7 +442,7 @@ function buildPdfBlob() {
   y += 34;
 
   const rows = [
-    ["Surveyor", d.surveyor], ["Date of Visit", d.dateOfVisit], ["Store #", d.storeName],
+    ["Surveyor", d.surveyor], ["Surveyor Email", d.surveyorEmail], ["Date of Visit", d.dateOfVisit], ["Store #", d.storeName],
     ["Address", d.address], ["PML", d.manager], ["PML Email", d.pmlEmail],
     ["PML Phone #", d.phone ? formatNANP(d.phone.trim()) : ""],
     ["Store Director", d.storeDirector], ["Store Director Email", d.storeDirectorEmail],
@@ -491,6 +519,8 @@ function buildPdfBlob() {
 
 function clearForm() {
   document.querySelectorAll("#form input[type=text],#form input[type=email],#form input[type=tel],#form input[type=number]").forEach(i => i.value = "");
+  document.getElementById("surveyor").value = "";
+  document.getElementById("surveyorEmail").dataset.edited = "false";
   document.querySelectorAll("#checks input[type=checkbox]").forEach(c => c.checked = false);
   document.getElementById("notes").value = "";
   localStorage.removeItem(KEY);
